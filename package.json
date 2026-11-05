@@ -1,0 +1,40 @@
+{
+  "name": "absen-kubik",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:bootstrap-admin": "node --env-file=.env.local scripts/bootstrap-admin.mjs",
+    "db:migrate-checkin-location-label": "node --env-file=.env.local scripts/migrate-checkin-location-label.mjs",
+    "db:migrate-tutor-password": "node --env-file=.env.local scripts/migrate-tutor-password.mjs",
+    "db:migrate-tutor-email": "node --env-file=.env.local scripts/migrate-tutor-email.mjs",
+    "db:migrate-settings": "node --env-file=.env.local scripts/migrate-settings.mjs",
+    "db:migrate-submitted-at": "node --env-file=.env.local scripts/migrate-submitted-at.mjs",
+    "db:migrate-weekly-class-schedules": "node --env-file=.env.local scripts/migrate-weekly-class-schedules.mjs",
+    "db:seed-school-data": "node --env-file=.env.local scripts/seed-school-data.mjs",
+    "db:seed-cm-students": "node --env-file=.env.local scripts/seed-cm-students.mjs",
+    "db:update-school-locations": "node --env-file=.env.local scripts/update-school-locations.mjs",
+    "drive:check": "node --env-file=.env.local scripts/check-google-drive.mjs",
+    "env:prepare": "node scripts/prepare-local-env.mjs",
+    "setup:check": "node --env-file=.env.local scripts/check-setup.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "bcryptjs": "^3.0.2",
+    "jose": "^6.1.0",
+    "leaflet": "^1.9.4",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "typescript": "^5.8.2"
+  }
+}

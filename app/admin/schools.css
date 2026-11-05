@@ -1,0 +1,104 @@
+.admin-shell {
+  --admin-title-size: 17px;
+  --admin-body-size: 14px;
+  --admin-label-size: 13px;
+  --admin-meta-size: 12px;
+  font-size: var(--admin-body-size);
+  line-height: 1.55;
+}
+.admin-shell .content { max-width: 1040px; padding: 32px 38px 112px; }
+.admin-shell .card { box-sizing: border-box; width: min(100%,700px); max-width: 700px; margin: 0 auto 8px; padding: 20px 22px; border-radius: 0; }
+.admin-shell .section-grid, .admin-shell .admin-page-description, .admin-shell .admin-notice { width: min(100%,700px); margin-left: auto; margin-right: auto; }
+.admin-shell .card-heading h2, .admin-shell .card-heading h3, .admin-shell .modal-head h2 { font-size: var(--admin-title-size); line-height: 1.4; }
+.admin-shell .card-heading p, .admin-shell .field-help, .admin-shell .footer-note, .admin-shell .meeting-meta { font-size: var(--admin-meta-size); }
+.admin-shell .field { gap: 5px; }
+.admin-shell .field label { font-size: var(--admin-label-size); }
+.admin-shell .field input, .admin-shell .field select, .admin-shell .field textarea { min-height: 40px; padding: 8px 10px; font-size: var(--admin-body-size); border-radius: 8px; }
+.admin-shell .btn { min-height: 38px; padding: 8px 12px; font-size: var(--admin-label-size); border-radius: 6px; }
+.admin-shell .btn.small { min-height: 36px; padding: 6px 10px; font-size: var(--admin-meta-size); }
+.admin-shell .status { font-size: var(--admin-meta-size); }
+.admin-shell .form-stack { gap: 12px; }
+.admin-shell .modal-body, .admin-shell .message { font-size: var(--admin-body-size); }
+.admin-shell .modal-head .muted { font-size: var(--admin-label-size); }
+.admin-shell .admin-tutor-heading { align-items: center; flex-wrap: nowrap; gap: 12px; }
+.admin-shell .admin-tutor-heading > div { min-width: 0; }
+.admin-shell .admin-tutor-heading > .btn { flex: none; white-space: nowrap; }
+.admin-shell .nav-icon { width: 44px; height: 44px; }
+.admin-shell .admin-identity { margin-bottom: 8px; }
+.admin-shell .admin-identity .presensi-tutor-banner { margin-bottom: 0; }
+.admin-shell .admin-logout { margin-left: auto; }
+.school-dashboard { display: grid; gap: 0; }
+.school-dashboard > .message { width: min(100%,700px); margin: 0 auto 8px; }
+.school-dashboard .card-heading { align-items: center; }
+.admin-shell .school-list-controls, .admin-shell .school-list-card { padding: 16px 20px; }
+.admin-shell .school-dashboard .card-heading { gap: 8px; margin-bottom: 10px; }
+.admin-shell .school-dashboard .card-heading h2 { font-size: var(--admin-title-size); line-height: 1.4; }
+.admin-shell .school-list-controls .field input { min-height: 38px; padding: 8px 12px; font-size: var(--admin-body-size); border-radius: 8px; }
+.admin-shell .school-list-controls .btn { min-height: 36px; padding: 6px 10px; font-size: var(--admin-meta-size); border-radius: 6px; }
+.admin-shell .admin-schedule-table tbody tr { grid-template-columns: minmax(0,1fr) 56px 124px; gap: 14px; padding: 12px 0; }
+.admin-shell .admin-schedule-table td strong { display: block; font-size: 14px; line-height: 1.5; }
+.admin-shell .admin-schedule-table .table-muted { display: block; margin-top: 3px; font-size: 12px; line-height: 1.5; }
+.admin-shell .admin-schedule-table .school-student-count { font-size: 12px; color: var(--muted); white-space: nowrap; text-align: right; }
+.admin-shell .admin-schedule-table .school-class-actions { display: grid; grid-template-columns: repeat(3,36px); justify-content: end; align-items: center; gap: 8px; }
+.admin-shell .admin-schedule-table .schedule-icon-button { display: grid; place-items: center; width: 36px; height: 36px; min-height: 36px; padding: 8px; border: 1px solid #dfe6f0; border-radius: 8px; background: #fff; color: #60718b; transition: background .15s, border-color .15s, color .15s; }
+.admin-shell .admin-schedule-table .schedule-students-button { background: #edf3ff; border-color: #dbe6fc; color: #315fc1; }
+.admin-shell .admin-schedule-table .schedule-icon-button:hover { background: #e5eeff; border-color: #a8bff1; color: #245bd5; }
+.admin-shell .admin-schedule-table .schedule-delete-button { color: #b52e45; background: #fff5f6; border-color: #f0d3d9; }
+.admin-shell .admin-schedule-table .schedule-delete-button:hover { color: #9c2037; background: #ffe7eb; border-color: #e7a5b0; }
+.schedule-icon-button svg, .roster-icon-button svg { display: block; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.admin-shell .school-dialog { max-width: 560px; border-radius: 0; }
+.admin-shell .school-dialog .modal-head { padding: 14px 16px; }
+.admin-shell .school-dialog .modal-head h2 { font-size: var(--admin-title-size); line-height: 1.4; }
+.admin-shell .school-dialog .modal-body { padding: 16px; }
+.admin-shell .school-dialog .form-stack { gap: 12px; }
+.admin-shell .school-dialog .field { gap: 5px; }
+.admin-shell .school-dialog .field label { font-size: var(--admin-label-size); }
+.admin-shell .school-dialog .field input, .admin-shell .school-dialog .field select, .admin-shell .school-dialog .field textarea { min-height: 40px; padding: 8px 10px; font-size: var(--admin-body-size); border-radius: 8px; }
+.admin-shell .school-dialog .field textarea { min-height: 64px; }
+.admin-shell .school-dialog .field-help { font-size: var(--admin-meta-size); }
+.admin-shell .school-dialog .btn { min-height: 38px; padding: 8px 12px; font-size: var(--admin-label-size); border-radius: 6px; }
+.school-dialog-context { color: var(--muted); font-size: var(--admin-body-size); margin: 0 0 16px; }
+.school-location-settings { font-size: var(--admin-body-size); border: 1px solid var(--line); padding: 12px; }
+.school-location-settings summary { cursor: pointer; color: #365f9e; }
+.school-location-settings p { color: var(--muted); margin: 8px 0; }
+.school-dialog .form-actions { margin-top: 18px; }
+.school-roster { padding: 14px; margin-bottom: 20px; border: 1px solid var(--line); background: #fbfcff; }
+.school-roster h3 { font-size: var(--admin-body-size); margin: 0 0 8px; }
+.school-roster ul { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; }
+.school-roster li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.school-roster li:last-child { border-bottom: 0; }
+.school-roster-name { min-width: 0; overflow-wrap: anywhere; }
+.school-roster-name strong { display: block; font-size: var(--admin-body-size); }
+.school-roster-name span { display: block; margin-top: 3px; color: var(--muted); font-size: var(--admin-meta-size); }
+.school-roster-actions { display: flex; gap: 6px; flex: none; }
+.admin-shell .school-dialog .roster-icon-button { display: grid; place-items: center; width: 34px; height: 34px; min-height: 34px; padding: 6px; color: #60718b; }
+.admin-shell .school-dialog .roster-delete-button { color: #b52e45; border-color: #f0d3d9; background: #fff5f6; }
+.admin-shell .school-dialog .roster-delete-button:hover { color: #9c2037; background: #ffe7eb; border-color: #e7a5b0; }
+.school-roster p { font-size: var(--admin-body-size); color: var(--muted); }
+.admin-shell .school-dialog .school-student-count-input { width: 120px; max-width: 100%; }
+.school-student-batch { display: grid; gap: 10px; }
+.school-student-row { min-width: 0; margin: 0; padding: 10px 12px 12px; border: 1px solid var(--line); }
+.school-student-row legend { padding: 0 5px; font-size: var(--admin-label-size); font-weight: 700; color: #536687; }
+.school-student-fields { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
+.school-student-submit { position: sticky; bottom: -16px; z-index: 1; padding: 12px 0 4px; border-top: 1px solid var(--line); background: #fff; }
+.school-dashboard .empty-state { font-size: var(--admin-body-size); }
+.school-dashboard .empty-state .btn { margin-top: 16px; }
+@media (max-width: 760px) {
+  .admin-shell .content { padding: 20px 19px 128px; }
+  .admin-shell .card { padding: 17px 16px; }
+  .admin-shell .nav-icon { width: 42px; height: 42px; }
+  .admin-shell .nav-icon svg { width: 23px; height: 23px; }
+}
+@media (max-width: 600px) {
+  .admin-shell .school-list-controls, .admin-shell .school-list-card { padding: 14px 16px; }
+  .admin-shell .admin-schedule-table tbody tr { grid-template-columns: minmax(0,1fr) 136px; gap: 8px 12px; padding: 12px 0; }
+  .admin-shell .admin-schedule-table td:first-child { grid-column: 1 / -1; grid-row: 1; }
+  .admin-shell .admin-schedule-table td:last-child { grid-column: 2; grid-row: 2; align-self: center; justify-self: end; width: auto; padding: 0; }
+  .admin-shell .admin-schedule-table .school-student-count { grid-column: 1; grid-row: 2; align-self: center; text-align: left; }
+  .admin-shell .admin-schedule-table .school-class-actions { grid-template-columns: repeat(3,40px); }
+  .admin-shell .admin-schedule-table .schedule-icon-button { width: 40px; height: 40px; min-height: 40px; }
+  .admin-shell .school-dialog .roster-icon-button { width: 38px; height: 38px; min-height: 38px; }
+}
+@media (max-width: 480px) {
+  .school-student-fields { grid-template-columns: minmax(0,1fr); gap: 8px; }
+}

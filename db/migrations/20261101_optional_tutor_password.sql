@@ -1,0 +1,5 @@
+ALTER TABLE app_users
+  ALTER COLUMN password_hash DROP NOT NULL;
+
+ALTER TABLE app_users
+  ADD COLUMN IF NOT EXISTS tutor_password_set BOOLEAN NOT NULL DEFAULT FALSE;
