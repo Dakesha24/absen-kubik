@@ -485,30 +485,30 @@ export default function TutorPage() {
       cache: "no-store",
     });
     const initResult = await initResponse.json().catch(() => ({}));
-    if (!initResponse.ok || !initResult.sessionUrl) throw new Error(initResult.error || `Gagal menyiapkan unggahan ${file.name}.`);
+    if (!initResponse.ok || !initResult.uploadToken) throw new Error(initResult.error || `Gagal menyiapkan unggahan ${file.name}.`);
 
     let start = 0;
     let driveFileId = "";
     while (start < file.size) {
       const end = Math.min(start + driveUploadChunkBytes, file.size);
-      const response = await fetch(initResult.sessionUrl, {
+      const response = await fetch(endpoint, {
         method: "PUT",
         headers: {
-          "Content-Type": file.type,
+          "Content-Type": "application/octet-stream",
           "Content-Range": `bytes ${start}-${end - 1}/${file.size}`,
+          "X-Upload-Token": initResult.uploadToken,
         },
         body: file.slice(start, end),
       });
-      if (response.status === 308) {
-        const acceptedRange = response.headers.get("Range");
-        const acceptedThrough = acceptedRange?.match(/bytes=0-(\d+)/)?.[1];
-        start = acceptedThrough ? Number(acceptedThrough) + 1 : end;
+      const uploaded = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(uploaded.error || `Gagal mengunggah ${file.name} ke Google Drive.`);
+      if (typeof uploaded.next === "number" && uploaded.next > start && uploaded.next <= end) {
+        start = uploaded.next;
         onProgress(Math.min(1, start / file.size));
         continue;
       }
-      const uploaded = await response.json().catch(() => ({}));
-      if (!response.ok || !uploaded.id) throw new Error(uploaded.error?.message || `Gagal mengunggah ${file.name} ke Google Drive.`);
-      driveFileId = uploaded.id;
+      if (!uploaded.fileId) throw new Error(`Google Drive belum menyelesaikan unggahan ${file.name}.`);
+      driveFileId = uploaded.fileId;
       start = file.size;
       onProgress(1);
     }

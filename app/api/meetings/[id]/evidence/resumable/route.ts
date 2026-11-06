@@ -3,11 +3,20 @@ import { db } from "@/lib/db";
 import { jsonError, readJson } from "@/lib/http";
 import { accessibleMeeting } from "@/lib/meeting-access";
 import { createDriveResumableUpload, ensureEvidenceFolder, getDriveFile } from "@/lib/drive";
+import { createHash } from "node:crypto";
+import { EncryptJWT, jwtDecrypt } from "jose";
 
 export const runtime = "nodejs";
 
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const MAX_CHUNK_BYTES = 4 * 1024 * 1024;
 const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+
+function uploadKey() {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) throw new Error("Konfigurasi sesi unggah belum tersedia.");
+  return createHash("sha256").update("drive-upload-v1:").update(secret).digest();
+}
 
 function safeFileName(value: string) {
   return value.replace(/[\\/]/g, "_").replace(/[^\p{L}\p{N}._ -]/gu, "_").slice(0, 140) || "dokumentasi-video";
@@ -50,7 +59,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const sessionUrl = await createDriveResumableUpload(folder.id, folder.token, {
         name: safeFileName(input.name), mimeType: input.mimeType, size: input.size,
       });
-      return Response.json({ sessionUrl }, { status: 201, headers: { "Cache-Control": "no-store" } });
+      const uploadToken = await new EncryptJWT({ sessionUrl, meetingId: id, tutorId: auth.user!.id, size: input.size, mimeType: input.mimeType })
+        .setProtectedHeader({ alg: "dir", enc: "A256GCM" }).setIssuedAt().setExpirationTime("2h").encrypt(uploadKey());
+      return Response.json({ uploadToken }, { status: 201, headers: { "Cache-Control": "no-store" } });
     }
 
     if (input.action !== "complete" || typeof input.fileId !== "string" || input.fileId.length > 300) {
@@ -81,5 +92,41 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return Response.json({ evidence: existing[0] }, { status: 200 });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Gagal memproses video.", 500);
+  }
+}
+
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const auth = await requireRole("tutor");
+  if (auth.response) return auth.response;
+  const { id } = await context.params;
+  const token = request.headers.get("x-upload-token");
+  const range = request.headers.get("content-range");
+  if (!token || token.length > 8192 || !range) return jsonError("Sesi unggah tidak valid.");
+  try {
+    const { payload } = await jwtDecrypt(token, uploadKey(), { keyManagementAlgorithms: ["dir"], contentEncryptionAlgorithms: ["A256GCM"] });
+    if (payload.meetingId !== id || payload.tutorId !== auth.user!.id || typeof payload.sessionUrl !== "string" || typeof payload.size !== "number" || typeof payload.mimeType !== "string" || !ALLOWED_VIDEO_TYPES.has(payload.mimeType)) return jsonError("Sesi unggah tidak valid.", 403);
+    const url = new URL(payload.sessionUrl);
+    if (url.protocol !== "https:" || url.hostname !== "www.googleapis.com" || url.port || url.username || url.password || url.pathname !== "/upload/drive/v3/files") return jsonError("Sesi unggah tidak valid.", 403);
+    const match = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(range);
+    if (!match) return jsonError("Rentang unggahan tidak valid.");
+    const start = Number(match[1]), end = Number(match[2]), total = Number(match[3]);
+    const size = end - start + 1;
+    if (![start, end, total].every(Number.isSafeInteger) || total !== payload.size || total < 1 || total > MAX_VIDEO_BYTES || start < 0 || end < start || end >= total || size > MAX_CHUNK_BYTES || (end + 1 < total && size % (256 * 1024) !== 0)) return jsonError("Ukuran potongan video tidak valid.");
+    const meeting = await accessibleMeeting(id, auth.user!);
+    if (!meeting || meeting.status !== "scheduled") return jsonError("Pertemuan tidak ditemukan atau absensi sudah dikirim.", 409);
+    const data = await request.arrayBuffer();
+    if (data.byteLength !== size) return jsonError("Ukuran data video tidak sesuai.");
+    const response = await fetch(url, { method: "PUT", headers: { "Content-Type": payload.mimeType, "Content-Range": range, "Content-Length": String(size) }, body: data, redirect: "manual", cache: "no-store" });
+    if (response.status === 308) {
+      const accepted = /^bytes=0-(\d+)$/.exec(response.headers.get("range") || "");
+      const next = accepted ? Number(accepted[1]) + 1 : 0;
+      if (!Number.isSafeInteger(next) || next <= start || next > end + 1) return jsonError("Google Drive belum mengonfirmasi potongan video. Coba unggah lagi.", 502);
+      return Response.json({ next }, { headers: { "Cache-Control": "no-store" } });
+    }
+    const result = await response.json().catch(() => ({})) as { id?: string };
+    if (!response.ok || !result.id) return jsonError("Google Drive gagal menerima video. Coba unggah lagi.", 502);
+    return Response.json({ fileId: result.id }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return jsonError("Sesi unggah berakhir atau video gagal dikirim. Coba unggah lagi.", 500);
   }
 }
