@@ -12,17 +12,20 @@ export async function GET() {
     const today = jakartaCalendar();
     const [meetings, classes] = await Promise.all([db()`
       SELECT m.id, m.meeting_number, to_char(m.meeting_date, 'YYYY-MM-DD') AS meeting_date, m.starts_at, m.status, m.submitted_at,
-        c.id AS class_id, c.name AS class_name, c.location_name,
+        c.id AS class_id, c.name AS class_name, c.location_name, sch.end_time AS scheduled_end_time,
         tc.checked_in_at, tc.latitude, tc.longitude, tc.accuracy_m,
         COUNT(DISTINCT ar.student_id)::int AS attendance_count,
         COUNT(DISTINCT ar.student_id) FILTER (WHERE ar.status <> 'present')::int AS absent_count,
         COUNT(DISTINCT ef.id)::int AS evidence_count
       FROM meetings m JOIN classes c ON c.id = m.class_id
+        LEFT JOIN class_schedules sch ON sch.class_id = m.class_id
+          AND sch.weekday = EXTRACT(DOW FROM m.meeting_date)
+          AND sch.start_time = (m.starts_at AT TIME ZONE 'Asia/Jakarta')::time
         LEFT JOIN tutor_checkins tc ON tc.meeting_id = m.id
         LEFT JOIN attendance_records ar ON ar.meeting_id = m.id
         LEFT JOIN evidence_files ef ON ef.meeting_id = m.id
       WHERE m.tutor_id = ${auth.user!.id} AND m.status <> 'cancelled'
-      GROUP BY m.id, c.id, tc.id
+      GROUP BY m.id, c.id, tc.id, sch.end_time
       ORDER BY m.meeting_date DESC, m.meeting_number DESC
     `, db()`
       SELECT c.id, c.name, c.location_name, sch.weekday, sch.start_time, sch.end_time
@@ -41,7 +44,7 @@ export async function POST(request: Request) {
   if (auth.response) return auth.response;
   try {
     const { date: today, weekday } = jakartaCalendar();
-    const body = await readJson<{ classId?: unknown }>(request);
+    const body = await readJson<{ classId?: unknown; newMeeting?: unknown }>(request);
     if (!validUuid(body.classId)) return jsonError("Pilih kelas yang valid.");
     const classRows = await db()`
       SELECT c.id, sch.weekday FROM classes c LEFT JOIN class_schedules sch ON sch.class_id = c.id
@@ -58,6 +61,7 @@ export async function POST(request: Request) {
         WHERE m.class_id = ${body.classId} AND m.tutor_id = ${auth.user!.id}
           AND m.status <> 'cancelled'
           AND m.meeting_date = ${today}::date
+          AND (${body.newMeeting === true} = FALSE OR m.status = 'scheduled')
         ORDER BY CASE WHEN m.status = 'scheduled' THEN 0 ELSE 1 END, m.meeting_number DESC
         LIMIT 1
       `;

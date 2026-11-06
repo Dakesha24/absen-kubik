@@ -28,7 +28,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     const safeName = file.name.replace(/[\\/]/g, "_").replace(/[^\p{L}\p{N}._ -]/gu, "_").slice(0, 140) || "dokumentasi";
     const namedFile = new File([file], safeName, { type: file.type });
-    const folder = await ensureEvidenceFolder(meeting.class_name, meeting.meeting_number, String(meeting.meeting_date), meeting.drive_folder_id);
+    const folder = await ensureEvidenceFolder(meeting.class_name, String(meeting.meeting_date), meeting.starts_at, meeting.drive_folder_id, meeting.id, meeting.class_id, meeting.meeting_number);
     if (!meeting.drive_folder_id) {
       await db()`
         UPDATE meetings SET drive_folder_id = ${folder.id} WHERE id = ${id} AND drive_folder_id IS NULL

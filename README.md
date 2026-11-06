@@ -78,7 +78,7 @@ Konfigurasi melalui environment berikut tetap didukung sebagai cadangan jika bel
 , aktifkan Google Drive API, dan siapkan OAuth Client ID/Client Secret.
 2. Otorisasikan akun Google pemilik dokumentasi dengan scope `https://www.googleapis.com/auth/drive`, lalu siapkan refresh token untuk OAuth client tersebut.
 3. Isi `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, dan `GOOGLE_REFRESH_TOKEN` di environment server. Opsional, isi `GOOGLE_DRIVE_ROOT_FOLDER_ID` dengan ID folder induk yang ingin dipakai.
-4. Aplikasi membuat struktur `ABSEN-KUBIK / [Nama Kelas] / Pertemuan [Nomor] - [Tanggal]` secara otomatis dan menyimpan ID folder/file ke database.
+4. Aplikasi menyimpan dokumentasi baru dalam `ABSEN-KUBIK / [Nama Sekolah] / [Nama Kelas] - [Jam Mulai WIB] / [Hari, Tanggal]` dan menyimpan ID folder/file ke database. Pertemuan tambahan pada kelas dan tanggal yang sama mendapat akhiran nomor pertemuan pada folder tanggalnya agar dokumentasi terpisah. Jika ID folder induk dikonfigurasi, folder tersebut digunakan sebagai pengganti `ABSEN-KUBIK`. Kelas tanpa jam memakai label `Tanpa jadwal`; kelas tanpa nama sekolah terpisah dikelompokkan dalam `Sekolah lainnya`. Pertemuan yang sudah memiliki folder tetap menggunakan folder lamanya.
 
 OAuth refresh token dan folder Drive harus dapat diakses akun yang diotorisasikan. Jangan membuat file menjadi publik otomatis. Bila OAuth consent screen masih berstatus Testing, periksa masa berlaku token dan batasan akun penguji sebelum dipakai rutin.
 

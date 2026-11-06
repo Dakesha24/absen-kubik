@@ -174,6 +174,12 @@
 .admin-shell .modal-head .muted { font-size: 13px; }
 .admin-shell .close-btn { flex: none; }
 .admin-shell .modal-body { padding: 20px; }
+.admin-shell .admin-checkin-map-section { margin-top: 14px; font-size: 13px; }
+.admin-shell .admin-checkin-map-section p { margin: 3px 0 8px; color: var(--muted); }
+.admin-shell .admin-checkin-map { box-sizing: border-box; width: 100%; max-width: 460px; min-width: 0; border: 1px solid var(--line); background: #edf2f8; }
+.admin-shell .admin-checkin-map iframe { display: block; width: 100%; height: 160px; border: 0; }
+.admin-shell .admin-checkin-map > a { display: block; padding: 3px 8px; background: #fff; color: #52698c; font-size: 12px; text-align: right; }
+@media (max-width: 480px) { .admin-shell .admin-checkin-map iframe { height: 140px; } }
 .admin-shell .two-col { grid-template-columns: minmax(0,1fr); gap: 10px; }
 .admin-shell .evidence-item { gap: 12px; border-radius: 0; border: 1px solid var(--line); margin-bottom: 8px; font-size: 13px; }
 .admin-shell .evidence-item > span:first-child { min-width: 0; overflow-wrap: anywhere; }

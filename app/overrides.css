@@ -350,6 +350,8 @@ h1,h2,h3,.brand-title{font-family:"Trebuchet MS","Arial Rounded MT Bold","Segoe 
 .tutor-shell .btn.secondary.upload-button:hover:not(.is-disabled){background:#f7f9ff;color:#1d43aa;box-shadow:0 4px 12px rgba(36,79,196,.1);transform:translateY(-1px)}
 .tutor-shell .btn.secondary.upload-button:active:not(.is-disabled){background:#eef3ff;color:#1d43aa;box-shadow:none;transform:scale(.99)}
 .tutor-shell .btn.secondary.upload-button.is-disabled{background:#fff;color:#75839a;border-color:#d8e1ef;box-shadow:none;opacity:.65}
+.tutor-shell .upload-error{margin-top:12px;overflow-wrap:anywhere}
+.tutor-shell .new-meeting-button{width:100%;justify-content:center;margin-top:12px}
 @media(max-width:760px){.tutor-shell .btn.secondary.upload-button{min-height:46px}}
 .tutor-hero-card{box-sizing:border-box;width:min(100%,1120px);aspect-ratio:1765/528;margin:0 auto 24px;overflow:hidden;border:1px solid var(--line);border-radius:0;background:#fff;box-shadow:0 5px 18px rgba(39,63,112,.08)}
 .tutor-hero-image{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
@@ -432,6 +434,61 @@ h1,h2,h3,.brand-title{font-family:"Trebuchet MS","Arial Rounded MT Bold","Segoe 
 .tutor-shell .attendance-step-card .attendance-options{padding:0;border:0;background:transparent}
 .tutor-shell .attendance-step-card .attendance-reason{font-size:13px}
 .tutor-shell .attendance-step-card .attendance-reason::placeholder{font-size:13px;color:#8b98ad}
+.tutor-shell:not(.admin-shell) .history-refresh{font-size:var(--tutor-sm)}
+.tutor-shell:not(.admin-shell) .history-filter-grid label,.tutor-shell:not(.admin-shell) .history-result-count{font-size:var(--tutor-sm)}
+.tutor-shell:not(.admin-shell) .history-filter-grid select{font-size:var(--tutor-body)}
+.tutor-shell:not(.admin-shell) .history-meeting-row .meeting-name{font-size:16px}
+.tutor-shell:not(.admin-shell) .history-meeting-row .meeting-meta{font-size:var(--tutor-sm)}
+.tutor-shell .history-dialog-backdrop{padding:16px;z-index:50}
+.tutor-shell .history-dialog{box-sizing:border-box;width:min(100%,700px);max-height:min(88vh,850px);max-height:min(88dvh,850px);border-radius:0;overscroll-behavior:contain;overflow-x:hidden}
+.tutor-shell .history-dialog .modal-head{align-items:flex-start}
+.tutor-shell .history-dialog .modal-head>div{min-width:0;overflow-wrap:anywhere}
+.tutor-shell .history-dialog .modal-head h2{font-size:var(--tutor-subhead);line-height:1.3}
+.tutor-shell .history-dialog .modal-head p{margin:4px 0 0;color:var(--muted);font-size:var(--tutor-sm);line-height:1.5}
+.tutor-shell .history-dialog .close-btn{flex:none;cursor:pointer}
+.tutor-shell .history-dialog .modal-body{min-width:0}
+.tutor-shell .history-dialog .location-map-frame{box-sizing:border-box;max-width:100%}
+.tutor-shell .evidence-preview-item{display:block;min-width:0;overflow:hidden;padding:10px;border:1px solid #e2e9f5;background:#fbfcff}
+.tutor-shell .evidence-preview-image,.tutor-shell .evidence-preview-unavailable{box-sizing:border-box;display:block;width:100%;height:200px;max-width:100%;background:#eef3fa;object-fit:contain}
+.tutor-shell .evidence-preview-unavailable{display:grid;place-items:center;padding:12px;color:var(--muted);text-align:center;font-size:var(--tutor-sm)}
+.tutor-shell .evidence-preview-info{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;margin-top:8px}
+.tutor-shell .evidence-preview-info:first-child{margin-top:0}
+.tutor-shell .evidence-preview-info>span{min-width:0;overflow-wrap:anywhere}
+.tutor-shell .evidence-preview-info .btn{flex:none}
+.tutor-shell .evidence-preview-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;flex:none}
+.tutor-shell .evidence-delete{color:#aa3e50;gap:5px}
+.tutor-shell .evidence-delete svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:480px){.tutor-shell .evidence-preview-info{align-items:flex-start;flex-direction:column}.tutor-shell .evidence-preview-actions{justify-content:flex-start}}
+.tutor-shell .history-detail-section{margin-top:20px;min-width:0}
+.tutor-shell .history-detail-section h3{margin:0 0 10px;font-size:16px;line-height:1.4}
+.tutor-shell .history-detail-section h3 span,.tutor-shell .history-detail-empty{color:var(--muted);font-size:var(--tutor-sm);font-weight:400}
+.tutor-shell .history-detail-empty{margin:0}
+.tutor-shell .history-dialog .evidence-item>span,.tutor-shell .history-student>div{min-width:0;overflow-wrap:anywhere}
+.tutor-shell .history-dialog .evidence-item .btn{flex:none}
+.tutor-shell .history-student{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #e5ebf6;font-size:var(--tutor-sm)}
+.tutor-shell .history-student:last-child{border-bottom:0}
+.tutor-shell .history-student>div span{display:block;margin-top:3px;color:var(--muted)}
+.tutor-shell .history-student .status{flex:none}
+.tutor-shell .teaching-recap-open{width:100%;min-height:48px;justify-content:center;gap:9px;margin-bottom:14px;border:1px solid #cfddf8;background:#edf3ff;color:#2854bf}
+.tutor-shell .teaching-recap-open:hover{background:#e3edff;border-color:#a9c1f2}
+.tutor-shell .teaching-recap-open svg,.tutor-shell .teaching-recap-actions svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tutor-shell .teaching-recap-dialog .modal-head{background:linear-gradient(120deg,#f2f6ff,#fff);border-bottom-color:#e1e9f8}
+.tutor-shell .teaching-recap-period{padding:15px;border:1px solid #e0e9f9;background:#f7f9ff}
+.tutor-shell .teaching-recap-section-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;color:#304a78;font-size:14px}
+.tutor-shell .teaching-recap-section-heading>span{color:#7889a4;font-size:12px}
+.tutor-shell .teaching-recap-section-heading label{margin:0}
+.tutor-shell .teaching-recap-section-heading .teaching-recap-count{padding:3px 9px;border-radius:99px;background:#eaf1ff;color:#4867a1;font-weight:700}
+.tutor-shell .teaching-recap-dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tutor-shell .teaching-recap-dates .field,.tutor-shell .teaching-recap-preview{min-width:0}
+.tutor-shell .teaching-recap-dates input,.tutor-shell .teaching-recap-preview textarea{box-sizing:border-box;width:100%;min-width:0;max-width:100%;font:inherit;font-size:14px}
+.tutor-shell .teaching-recap-preview{margin-top:16px}
+.tutor-shell .teaching-recap-preview textarea{resize:vertical;min-height:180px;line-height:1.6;overflow-wrap:anywhere;border-color:#dce6f6;background:#fbfcff;color:#334c70}
+.tutor-shell .teaching-recap-error{color:#a54949;font-size:14px}
+.tutor-shell .teaching-recap-feedback,.tutor-shell .teaching-recap-note{color:var(--muted);font-size:14px;line-height:1.5}
+.tutor-shell .teaching-recap-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.tutor-shell .teaching-recap-actions .btn{box-sizing:border-box;min-width:0;min-height:46px;width:100%;justify-content:center;gap:8px;text-align:center}
+@media(max-width:480px){.tutor-shell .teaching-recap-dates,.tutor-shell .teaching-recap-actions{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){.tutor-shell .history-dialog-backdrop{padding:10px}.tutor-shell .history-dialog .modal-head,.tutor-shell .history-dialog .modal-body{padding:14px}.tutor-shell:not(.admin-shell) .history-card .card-heading{align-items:flex-start;flex-wrap:wrap}.tutor-shell:not(.admin-shell) .history-row-actions{gap:5px}.tutor-shell:not(.admin-shell) .history-meeting-row{gap:8px}}
 .tutor-photo{object-fit:cover;overflow:hidden}
 .tutor-choice-row{display:grid;grid-template-columns:minmax(0,1fr) 50px;align-items:center;gap:9px}
 .tutor-choice-row:not(.has-photo){display:block}
@@ -462,6 +519,9 @@ h1,h2,h3,.brand-title{font-family:"Trebuchet MS","Arial Rounded MT Bold","Segoe 
 .password-dialog-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:24px}
 .password-dialog-actions.is-success{grid-template-columns:minmax(0,1fr)}
 .password-dialog-actions .btn{min-width:0;width:100%}
+.attendance-success-actions{display:grid;gap:10px;margin-top:24px}
+.attendance-success-actions .btn{box-sizing:border-box;width:100%;min-width:0;justify-content:center}
+.attendance-success-dialog a:focus-visible{outline:3px solid #b8ccff;outline-offset:3px}
 .password-dialog button:focus-visible{outline:3px solid #b8ccff;outline-offset:3px}
 .password-saving-spinner{width:16px;height:16px;flex:none;border:2px solid #ffffff66;border-top-color:#fff;border-radius:50%;animation:password-alert-spin .7s linear infinite}
 @keyframes password-alert-fade{from{opacity:0}to{opacity:1}}

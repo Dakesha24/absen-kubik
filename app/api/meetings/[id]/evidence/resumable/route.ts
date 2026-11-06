@@ -45,7 +45,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (!ALLOWED_VIDEO_TYPES.has(input.mimeType)) return jsonError("Format video yang didukung: MP4, MOV, dan WebM.");
       if (input.size < 1 || input.size > MAX_VIDEO_BYTES) return jsonError("Ukuran maksimal video adalah 100 MB per video.");
 
-      const folder = await ensureEvidenceFolder(meeting.class_name, meeting.meeting_number, String(meeting.meeting_date), meeting.drive_folder_id);
+      const folder = await ensureEvidenceFolder(meeting.class_name, String(meeting.meeting_date), meeting.starts_at, meeting.drive_folder_id, meeting.id, meeting.class_id, meeting.meeting_number);
       await saveFolderId(id, meeting.drive_folder_id, folder.id);
       const sessionUrl = await createDriveResumableUpload(folder.id, folder.token, {
         name: safeFileName(input.name), mimeType: input.mimeType, size: input.size,
@@ -57,7 +57,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return jsonError("Permintaan unggah video tidak valid.");
     }
 
-    const folder = await ensureEvidenceFolder(meeting.class_name, meeting.meeting_number, String(meeting.meeting_date), meeting.drive_folder_id);
+    const folder = await ensureEvidenceFolder(meeting.class_name, String(meeting.meeting_date), meeting.starts_at, meeting.drive_folder_id, meeting.id, meeting.class_id, meeting.meeting_number);
     await saveFolderId(id, meeting.drive_folder_id, folder.id);
     const file = await getDriveFile(folder.token, input.fileId);
     if (!file.parents?.includes(folder.id)) return jsonError("Video tidak berada di folder pertemuan ini.", 403);

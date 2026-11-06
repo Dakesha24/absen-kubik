@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { effectiveDriveSettings } from "@/lib/drive-settings";
+import { db } from "@/lib/db";
 
 type DriveFile = { id: string; name: string; mimeType?: string; size?: string; webViewLink?: string; parents?: string[] };
 
@@ -96,14 +97,25 @@ async function findOrCreateFolder(token: string, name: string, parentId?: string
   return created.id;
 }
 
-export async function ensureEvidenceFolder(className: string, meetingNumber: number, meetingDate: string, existingFolderId?: string | null) {
+export async function ensureEvidenceFolder(className: string, meetingDate: string, startsAt: string | null, existingFolderId: string | null, meetingId: string, classId: string, meetingNumber: number) {
+  if (typeof meetingDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(meetingDate)) {
+    throw new Error("Tanggal pertemuan tidak valid. Muat ulang aplikasi atau mulai ulang server, lalu coba lagi.");
+  }
+  const dateValue = new Date(`${meetingDate}T00:00:00+07:00`);
+  if (Number.isNaN(dateValue.getTime())) throw new Error("Tanggal pertemuan tidak valid. Hubungi admin.");
   const token = await accessToken();
   if (existingFolderId) return { id: existingFolderId, token };
   const config = await effectiveDriveSettings();
   const root = config?.rootFolderId || await findOrCreateFolder(token, "ABSEN-KUBIK");
-  const classFolder = await findOrCreateFolder(token, className, root);
-  const date = meetingDate.slice(0, 10);
-  const meetingFolder = await findOrCreateFolder(token, `Pertemuan ${String(meetingNumber).padStart(2, "0")} - ${date}`, classFolder);
+  const parts = className.split(/\s+[—–]\s+/);
+  const school = parts.length > 1 ? parts[0].trim() : "Sekolah lainnya";
+  const name = parts.length > 1 ? parts.slice(1).join(" — ").trim() : className;
+  const time = startsAt ? new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(startsAt)).replace(":", ".") + " WIB" : "Tanpa jadwal";
+  const schoolFolder = await findOrCreateFolder(token, school, root);
+  const classFolder = await findOrCreateFolder(token, `${name} - ${time}`, schoolFolder);
+  const dateName = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(dateValue);
+  const earlier = await db()`SELECT id FROM meetings WHERE class_id = ${classId} AND meeting_date = ${meetingDate}::date AND id <> ${meetingId} AND drive_folder_id IS NOT NULL LIMIT 1`;
+  const meetingFolder = await findOrCreateFolder(token, earlier.length ? `${dateName} - Pertemuan ${meetingNumber}` : dateName, classFolder);
   return { id: meetingFolder, token };
 }
 

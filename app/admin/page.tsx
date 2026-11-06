@@ -15,7 +15,7 @@ type Tutor = { id: string; name: string; active: boolean; created_at: string; ha
 type KubikClass = { id: string; name: string; description: string | null; location_name: string | null; latitude: number | null; longitude: number | null; radius_m: number | null; active: boolean; student_count: number; weekday: number | null; start_time: string | null; end_time: string | null };
 type Meeting = { id: string; meeting_number: number; meeting_date: string; starts_at: string | null; submitted_at: string | null; status: string; class_id: string; class_name: string; tutor_id: string; tutor_name: string; checked_in_at: string | null; attendance_count: number; absent_count: number; evidence_count: number };
 type Summary = { tutors: Tutor[]; classes: KubikClass[]; meetings: Meeting[] };
-type Detail = { meeting: { class_name: string; meeting_number: number; meeting_date: string; submitted_at: string | null; status: string }; students: Array<{ id: string; name: string; status: string; reason: string | null }>; checkin: null | { latitude: number; longitude: number; accuracy_m: number; distance_m: number | null; location_label: string | null; checked_in_at: string }; evidence: Array<{ id: string; name: string; mime_type: string; size_bytes: number; web_view_link: string | null; created_at: string }> };
+type Detail = { meeting: { id: string; class_name: string; meeting_number: number; meeting_date: string; submitted_at: string | null; status: string }; students: Array<{ id: string; name: string; status: string; reason: string | null }>; checkin: null | { latitude: number; longitude: number; accuracy_m: number; distance_m: number | null; location_label: string | null; checked_in_at: string }; evidence: Array<{ id: string; name: string; mime_type: string; size_bytes: number; web_view_link: string | null; created_at: string }> };
 type Tab = "ringkasan" | "tutor" | "pertemuan" | "pengaturan";
 
 const nav: Array<{ id: Tab; label: string; icon: NavIconName }> = [
@@ -33,6 +33,13 @@ function schoolName(className: string) {
 
 function dateText(value: string) {
   return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date(value));
+}
+
+function checkinMapUrl(latitude: number, longitude: number) {
+  const lat = Number(Number(latitude).toFixed(3));
+  const lon = Number(Number(longitude).toFixed(3));
+  const params = new URLSearchParams({ bbox: [lon - 0.008, lat - 0.006, lon + 0.008, lat + 0.006].join(","), layer: "mapnik", marker: `${lat},${lon}` });
+  return `https://www.openstreetmap.org/export/embed.html?${params.toString()}`;
 }
 
 async function send(path: string, method = "GET", body?: unknown) {
@@ -347,6 +354,15 @@ function MeetingTable({ meetings, onOpen }: { meetings: Meeting[]; onOpen: (id: 
   </button>)}</div>;
 }
 
+function AdminEvidenceItem({ file, meetingId }: { file: Detail["evidence"][number]; meetingId: string }) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const isImage = ["image/jpeg", "image/png", "image/webp"].includes(file.mime_type);
+  return <div className="evidence-item evidence-preview-item">
+    {isImage && (previewFailed ? <div className="evidence-preview-unavailable">Pratinjau foto tidak tersedia</div> : <img className="evidence-preview-image" src={`/api/meetings/${encodeURIComponent(meetingId)}/evidence/${encodeURIComponent(file.id)}/preview`} alt={`Pratinjau ${file.name}`} loading="lazy" onError={() => setPreviewFailed(true)} />)}
+    <div className="evidence-preview-info"><span><strong>{file.name}</strong><span className="table-muted">{new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(file.size_bytes / 1024)} KB · {new Date(file.created_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</span></span>{file.web_view_link ? <a className="btn secondary small" href={file.web_view_link} target="_blank" rel="noreferrer">Buka Drive ↗</a> : <span className="muted">Tersimpan</span>}</div>
+  </div>;
+}
+
 function MeetingModal({ detail, onClose }: { detail: Detail; onClose: () => void }) {
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="modal" role="dialog" aria-modal="true" aria-label="Detail pertemuan">
     <div className="modal-head"><div><div className="eyebrow" style={{ color: "var(--teal)" }}>Laporan pertemuan</div><h2>{detail.meeting.class_name} · Pertemuan {detail.meeting.meeting_number}</h2><span className="muted">{dateText(detail.meeting.meeting_date)}</span></div><button className="close-btn" onClick={onClose} aria-label="Tutup">×</button></div>
@@ -356,10 +372,11 @@ function MeetingModal({ detail, onClose }: { detail: Detail; onClose: () => void
         <div className="callout"><strong>Check-in tutor</strong><br />{detail.checkin ? <><strong>{detail.checkin.location_label || "Nama lokasi tidak tersedia"}</strong>{detail.checkin.location_label && <span className="table-muted">Nama area perkiraan</span>}{new Date(detail.checkin.checked_in_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} · akurasi ±{Math.round(detail.checkin.accuracy_m)} m{detail.checkin.distance_m !== null ? ` · ${Math.round(detail.checkin.distance_m)} m dari kelas` : ""}<br /><a href={`https://www.google.com/maps?q=${detail.checkin.latitude},${detail.checkin.longitude}`} target="_blank" rel="noreferrer" style={{ color: "var(--teal)", fontWeight: 700 }}>Lihat titik di peta ↗</a></> : "Tutor belum check-in."}</div>
         <div className="callout"><strong>Kehadiran siswa</strong><br />{detail.students.filter((s) => s.status === "present").length} hadir · {detail.students.filter((s) => s.status !== "present").length} tidak hadir dari {detail.students.length} siswa</div>
       </div>
+      {detail.checkin && <div className="admin-checkin-map-section"><strong>Lokasi check-in tutor</strong><p>Titik pada peta menunjukkan perkiraan lokasi check-in.</p><div className="admin-checkin-map"><iframe title="Peta perkiraan lokasi check-in tutor" src={checkinMapUrl(detail.checkin.latitude, detail.checkin.longitude)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" /><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a></div></div>}
       <div className="card-heading" style={{ marginTop: 22 }}><div><h3>Daftar siswa</h3><p>Status absensi yang disimpan tutor.</p></div></div>
       {detail.students.length ? <div>{detail.students.map((s) => <div className="evidence-item" key={s.id}><span><strong>{s.name}</strong>{s.reason && <span className="table-muted">{s.reason}</span>}</span><span className={`status ${s.status === "present" ? "ok" : "wait"}`}>{attendanceLabel(s.status)}</span></div>)}</div> : <Empty text="Pertemuan disimpan tanpa daftar siswa." />}
       <div className="card-heading" style={{ marginTop: 22 }}><div><h3>Dokumentasi</h3><p>File yang dikirim tutor ke Google Drive.</p></div></div>
-      {detail.evidence.length ? <div className="evidence-list">{detail.evidence.map((file) => <div className="evidence-item" key={file.id}><span><strong>{file.name}</strong><span className="table-muted">{new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(file.size_bytes / 1024)} KB · {new Date(file.created_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</span></span>{file.web_view_link ? <a className="btn secondary small" href={file.web_view_link} target="_blank" rel="noreferrer">Buka Drive ↗</a> : <span className="muted">Tersimpan</span>}</div>)}</div> : <Empty text="Belum ada dokumentasi." />}
+      {detail.evidence.length ? <div className="evidence-list">{detail.evidence.map((file) => <AdminEvidenceItem key={file.id} file={file} meetingId={detail.meeting.id} />)}</div> : <Empty text="Belum ada dokumentasi." />}
     </div>
   </section></div>;
 }

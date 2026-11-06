@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 
-export type NavIconName = "history" | "recap" | "settings" | "presence" | "profile" | "logout" | "overview" | "tutors" | "students" | "classes" | "meetings" | "location" | "camera" | "video" | "send" | "edit" | "monitoring" | "trash";
+export type NavIconName = "history" | "recap" | "settings" | "presence" | "profile" | "logout" | "overview" | "tutors" | "students" | "classes" | "meetings" | "location" | "camera" | "video" | "send" | "edit" | "monitoring" | "trash" | "copy";
 
 const paths: Record<NavIconName, ReactNode> = {
+  copy: <><rect x="8" y="8" width="12" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2" /></>,
   trash: <><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></>,
   monitoring: <><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4M6 11h3l2-4 3 7 2-3h2" /></>,
   edit: <><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z" /><path d="m15 5 3 3" /></>,

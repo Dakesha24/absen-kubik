@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { NavIcon, type NavIconName } from "@/components/nav-icon";
@@ -10,7 +10,7 @@ import { jakartaCalendar, submittedTime } from "@/lib/time";
 import TutorClassPicker, { type TutorClassOption } from "@/components/tutor-class-picker";
 import PasswordChangeDialog from "@/components/password-change-dialog";
 
-type Meeting = { id: string; meeting_number: number; meeting_date: string; starts_at: string | null; submitted_at: string | null; status: string; class_id: string; class_name: string };
+type Meeting = { id: string; meeting_number: number; meeting_date: string; starts_at: string | null; scheduled_end_time: string | null; submitted_at: string | null; status: string; class_id: string; class_name: string };
 type TutorClass = TutorClassOption;
 type Student = { id: string; name: string; status: "present" | "absent" | "sick" | "permission"; reason: string | null };
 type Evidence = { id: string; name: string; mime_type: string; size_bytes: number; web_view_link: string | null; created_at: string };
@@ -58,6 +58,64 @@ function schoolName(className: string) {
 }
 const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
+function defaultRecapPeriod(today: string) {
+  const [year, month, day] = today.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - (day >= 27 ? 1 : 2), 27));
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 26));
+  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+}
+
+function recapDate(date: string) {
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date(`${date}T00:00:00+07:00`));
+}
+
+function TeachingRecapDialog({ meetings, userName, today, onClose }: { meetings: Meeting[]; userName: string; today: string; onClose: () => void }) {
+  const [period, setPeriod] = useState(() => defaultRecapPeriod(today));
+  const [copyMessage, setCopyMessage] = useState("");
+  const [editedText, setEditedText] = useState<string | null>(null);
+  const dialog = useRef<HTMLElement>(null);
+  const close = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    close.current?.focus();
+    function keydown(event: KeyboardEvent) {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), a[href]') || []);
+      if (!controls.length) { event.preventDefault(); return; }
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+    document.addEventListener("keydown", keydown);
+    return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", keydown); if (previousFocus?.isConnected) previousFocus.focus(); };
+  }, [onClose]);
+  const valid = Boolean(period.start && period.end && period.start <= period.end);
+  const selected = valid ? meetings.filter((meeting) => meeting.meeting_date >= period.start && meeting.meeting_date <= period.end).sort((a, b) => a.meeting_date.localeCompare(b.meeting_date) || (a.starts_at || "").localeCompare(b.starts_at || "") || a.class_name.localeCompare(b.class_name, "id")) : [];
+  const generatedText = valid ? `REKAP MENGAJAR (${recapDate(period.start)} - ${recapDate(period.end)})\n${userName}\n\n${selected.length ? selected.map((meeting, index) => `${index + 1}. ${dateText(`${meeting.meeting_date}T00:00:00+07:00`)} - ${meeting.class_name}${meeting.starts_at ? ` (${new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Jakarta" }).format(new Date(meeting.starts_at))}${meeting.scheduled_end_time ? ` - ${meeting.scheduled_end_time.slice(0, 5).replace(":", ".")} WIB` : " WIB, jam selesai belum tersedia"})` : " (jadwal jam belum tersedia)"}`).join("\n") : "Belum ada pertemuan selesai pada periode ini."}` : "";
+  const text = editedText ?? generatedText;
+  async function copyRecap() {
+    try { await navigator.clipboard.writeText(text); setCopyMessage("Rekap berhasil disalin."); }
+    catch { setCopyMessage("Gagal menyalin otomatis. Pilih teks rekap lalu salin secara manual."); }
+  }
+  return <div className="modal-backdrop history-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section ref={dialog} className="modal history-dialog teaching-recap-dialog" role="dialog" aria-modal="true" aria-labelledby="teaching-recap-title">
+      <div className="modal-head"><div><h2 id="teaching-recap-title">Rekap Mengajar</h2><p>Pilih periode untuk membuat rekap.</p></div><button ref={close} type="button" className="close-btn" onClick={onClose} aria-label="Tutup rekap mengajar">×</button></div>
+      <div className="modal-body"><div className="teaching-recap-period"><div className="teaching-recap-section-heading"><strong>Periode rekap</strong><span>Sesuaikan tanggal</span></div><div className="teaching-recap-dates">
+        <div className="field"><label htmlFor="recap-start">Dari tanggal</label><input id="recap-start" type="date" value={period.start} onChange={(event) => { setPeriod({ ...period, start: event.target.value }); setEditedText(null); setCopyMessage(""); }} /></div>
+        <div className="field"><label htmlFor="recap-end">Sampai tanggal</label><input id="recap-end" type="date" value={period.end} onChange={(event) => { setPeriod({ ...period, end: event.target.value }); setEditedText(null); setCopyMessage(""); }} /></div>
+      </div></div>
+      {!valid && <p className="teaching-recap-error" role="alert">Pilih tanggal awal dan akhir yang valid. Tanggal akhir tidak boleh sebelum tanggal awal.</p>}
+      <div className="field teaching-recap-preview"><div className="teaching-recap-section-heading"><label htmlFor="recap-text">Teks rekap</label>{valid && <span className="teaching-recap-count">{selected.length} pertemuan</span>}</div><textarea id="recap-text" value={text} onChange={(event) => { setEditedText(event.target.value); setCopyMessage(""); }} rows={10} placeholder="Pilih periode untuk melihat rekap." /><span className="field-help">Teks dapat diedit. Mengubah periode akan membuat ulang teks rekap.</span><span className="field-help">Jam selesai mengikuti jadwal kelas saat ini jika sesuai dengan waktu mulai pertemuan; periksa kembali jika jadwal pernah berubah.</span></div>
+      {copyMessage && <p className="teaching-recap-feedback" role="status">{copyMessage}</p>}
+      <div className="teaching-recap-actions"><button type="button" className="btn secondary" disabled={!valid} onClick={() => void copyRecap()}><NavIcon name="copy" />Salin</button>{valid ? <a className="btn" href={`https://wa.me/6283133734323?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer"><NavIcon name="send" />Kirim ke Bu Yuli</a> : <button type="button" className="btn" disabled><NavIcon name="send" />Kirim ke Bu Yuli</button>}</div>
+      <p className="teaching-recap-note">WhatsApp akan terbuka dengan pesan yang siap diperiksa dan dikirim.</p></div>
+    </section>
+  </div>;
+}
+
 function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
@@ -83,6 +141,79 @@ function LocationMapPlaceholder({ tracking }: { tracking: boolean }) {
 
 function LocationMap({ latitude, longitude, title, precision = 3 }: { latitude: number; longitude: number; title: string; precision?: number }) {
   return <div className="location-map-frame"><iframe title={title} src={osmMapEmbedUrl(latitude, longitude, precision)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" /><a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a></div>;
+}
+
+function EvidenceItem({ file, meetingId, onDelete, deleting, disabled }: { file: Evidence; meetingId: string; onDelete?: () => void; deleting?: boolean; disabled?: boolean }) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const isImage = ["image/jpeg", "image/png", "image/webp"].includes(file.mime_type);
+  return <div className="evidence-item evidence-preview-item">
+    {isImage && (previewFailed ? <div className="evidence-preview-unavailable">Pratinjau foto tidak tersedia</div> : <img className="evidence-preview-image" src={`/api/meetings/${encodeURIComponent(meetingId)}/evidence/${encodeURIComponent(file.id)}/preview`} alt={`Pratinjau ${file.name}`} loading="lazy" onError={() => setPreviewFailed(true)} />)}
+    <div className="evidence-preview-info"><span><strong>{file.name}</strong><span className="table-muted">{formatFileSize(file.size_bytes)}</span></span><div className="evidence-preview-actions">{file.web_view_link && <a className="btn ghost small" href={file.web_view_link} target="_blank" rel="noreferrer">Drive ↗</a>}{onDelete && <button type="button" className="btn ghost small evidence-delete" onClick={onDelete} disabled={disabled} aria-label={`Hapus ${file.name}`}><NavIcon name="trash" />{deleting ? "Menghapus…" : "Hapus"}</button>}</div></div>
+  </div>;
+}
+
+function AttendanceSuccessDialog({ onClose, onHistory }: { onClose: () => void; onHistory: () => void }) {
+  const dialog = useRef<HTMLElement>(null);
+  const close = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    close.current?.focus();
+    function keydown(event: KeyboardEvent) {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]') || []);
+      if (!controls.length) { event.preventDefault(); return; }
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+    document.addEventListener("keydown", keydown);
+    return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", keydown); if (previousFocus?.isConnected) previousFocus.focus(); };
+  }, [onClose]);
+  return <div className="modal-backdrop password-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section ref={dialog} className="password-dialog attendance-success-dialog" role="dialog" aria-modal="true" aria-labelledby="attendance-success-title" aria-describedby="attendance-success-description">
+      <button ref={close} type="button" className="password-dialog-close" onClick={onClose} aria-label="Tutup">×</button>
+      <div className="password-dialog-icon is-success" aria-hidden="true"><svg viewBox="0 0 64 64"><circle className="password-success-ring" cx="32" cy="32" r="26" /><path className="password-success-check" d="m19 33 9 9 18-20" /></svg></div>
+      <h2 id="attendance-success-title">Absensi berhasil tersimpan</h2>
+      <p id="attendance-success-description">Dokumentasi dapat dilihat di folder Google Drive ABSEN-KUBIK.</p>
+      <div className="attendance-success-actions"><a className="btn secondary" href="https://drive.google.com/drive/folders/1e8unx2h7qwGmcxtQvsa_7FbJbvoY1-tJ?usp=sharing" target="_blank" rel="noreferrer">Buka Google Drive ↗</a><button type="button" className="btn" onClick={onHistory}>Lihat rekap absensi</button></div>
+    </section>
+  </div>;
+}
+
+function HistoryDialog({ detail, onClose }: { detail: Detail; onClose: () => void }) {
+  const dialog = useRef<HTMLElement>(null);
+  const close = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    close.current?.focus();
+    function keydown(event: KeyboardEvent) {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], iframe') || []);
+      if (!controls.length) { event.preventDefault(); return; }
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+    document.addEventListener("keydown", keydown);
+    return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", keydown); if (previousFocus?.isConnected) previousFocus.focus(); };
+  }, [onClose]);
+  return <div className="modal-backdrop history-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section ref={dialog} className="modal history-dialog" role="dialog" aria-modal="true" aria-labelledby="history-dialog-title">
+      <div className="modal-head"><div><h2 id="history-dialog-title">Detail Absensi</h2><p>{detail.meeting.class_name}</p><p>{dateText(detail.meeting.meeting_date)}</p></div><button ref={close} type="button" className="close-btn" onClick={onClose} aria-label="Tutup detail absensi">×</button></div>
+      <div className="modal-body">
+        <div className="message success">Presensi sudah dikirim. {submittedTime(detail.meeting.submitted_at)}.</div>
+        <section className="history-detail-section"><h3>Lokasi check-in</h3>{detail.checkin ? <LocationMap latitude={detail.checkin.latitude} longitude={detail.checkin.longitude} title="Peta lokasi check-in" /> : <p className="history-detail-empty">Lokasi check-in tidak tersedia.</p>}</section>
+        <section className="history-detail-section"><h3>Dokumentasi</h3>{detail.evidence.length ? <div className="evidence-list">{detail.evidence.map((file) => <EvidenceItem key={file.id} file={file} meetingId={detail.meeting.id} />)}</div> : <p className="history-detail-empty">Tidak ada dokumentasi.</p>}</section>
+        <section className="history-detail-section"><h3>Daftar hadir <span>({detail.students.length} siswa)</span></h3>{detail.students.length ? <div className="history-students">{detail.students.map((student) => <div className="history-student" key={student.id}><div><strong>{student.name}</strong>{student.reason && <span>{student.reason}</span>}</div><span className={`status ${student.status === "present" ? "ok" : "wait"}`}>{attendanceOptions.find((option) => option.status === student.status)?.label || student.status}</span></div>)}</div> : <p className="history-detail-empty">Tidak ada siswa dalam pertemuan ini.</p>}</section>
+      </div>
+    </section>
+  </div>;
 }
 
 async function compressedImage(file: File) {
@@ -111,6 +242,8 @@ export default function TutorPage() {
   const [historyYear, setHistoryYear] = useState("");
   const [historySchool, setHistorySchool] = useState("");
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [attendanceSuccess, setAttendanceSuccess] = useState(false);
+  const [teachingRecapOpen, setTeachingRecapOpen] = useState(false);
   const [userName, setUserName] = useState("Tutor");
   const [hasPassword, setHasPassword] = useState(false);
   const [dismissedPasswordNoticeTabs, setDismissedPasswordNoticeTabs] = useState<TutorTab[]>([]);
@@ -129,6 +262,8 @@ export default function TutorPage() {
   const [locationIssue, setLocationIssue] = useState(false);
   const [outsideLocation, setOutsideLocation] = useState<GeoPoint | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
+  const [deletingEvidenceId, setDeletingEvidenceId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -189,21 +324,26 @@ export default function TutorPage() {
     : null;
 
   async function openMeeting(meeting: Meeting) {
-    setBusy(true); setLocationIssue(false); setOutsideLocation(null); setError(""); setMessage("");
+    setBusy(true); setLocationIssue(false); setOutsideLocation(null); setError(""); setUploadError(""); setMessage("");
     try { setDetail(await request(`/api/meetings/${meeting.id}`)); }
     catch (err) { if (activeTab === "presensi") setSelectedClassId(""); setError(err instanceof Error ? err.message : "Gagal membuka pertemuan."); }
     finally { setBusy(false); }
   }
 
-  async function chooseClass(classId: string) {
+  const closeHistory = useCallback(() => setDetail(null), []);
+  const closeTeachingRecap = useCallback(() => setTeachingRecapOpen(false), []);
+  const closeAttendanceSuccess = useCallback(() => setAttendanceSuccess(false), []);
+
+  async function chooseClass(classId: string, newMeeting = false) {
     setSelectedClassId(classId);
+    setUploadError("");
     setDetail(null);
     setLocationIssue(false);
     setOutsideLocation(null);
     if (!classId) return;
     setBusy(true); setError(""); setMessage("");
     try {
-      const result = await request("/api/tutor/meetings", "POST", { classId });
+      const result = await request("/api/tutor/meetings", "POST", { classId, newMeeting });
       setDetail(await request(`/api/meetings/${result.meeting.id}`));
     } catch (err) {
       setSelectedClassId("");
@@ -254,10 +394,13 @@ export default function TutorPage() {
     setBusy(true); setError(""); setMessage("");
     try {
       await request(`/api/meetings/${detail.meeting.id}/complete`, "POST", { records: detail.students.map((s) => ({ studentId: s.id, status: s.status, reason: s.status === "present" ? "" : s.reason || "" })) });
+      setHistoryMonth(detail.meeting.meeting_date.slice(5, 7));
+      setHistoryYear(detail.meeting.meeting_date.slice(0, 4));
+      setHistorySchool("");
       setSelectedClassId("");
       setDetail(null);
+      setAttendanceSuccess(true);
       await load();
-      setMessage("Presensi berhasil disimpan.");
     } catch (err) { setError(err instanceof Error ? err.message : "Gagal mengirim presensi."); }
     finally { setBusy(false); }
   }
@@ -291,7 +434,7 @@ export default function TutorPage() {
 
   async function uploadFiles(files: FileList | null) {
     if (!detail || !files?.length) return;
-    setUploadBusy(true); setError(""); setMessage("");
+    setUploadBusy(true); setError(""); setUploadError(""); setMessage("");
     try {
       const selectedFiles = Array.from(files);
       const totalBytes = selectedFiles.reduce((total, file) => total + file.size, 0);
@@ -317,8 +460,20 @@ export default function TutorPage() {
       }
       const refreshed = await request(`/api/meetings/${detail.meeting.id}`);
       setDetail(refreshed); setMessage("Dokumentasi berhasil diunggah ke Google Drive."); await load();
-    } catch (err) { setError(err instanceof Error ? err.message : "Gagal mengunggah dokumentasi."); }
+    } catch (err) { setUploadError(err instanceof Error ? err.message : "Gagal mengunggah dokumentasi."); }
     finally { setUploadBusy(false); setUploadProgress(0); }
+  }
+
+  async function deleteEvidence(file: Evidence) {
+    if (!detail || deletingEvidenceId || uploadBusy || busy) return;
+    const meetingId = detail.meeting.id;
+    setDeletingEvidenceId(file.id); setUploadError("");
+    try {
+      const result = await request(`/api/meetings/${meetingId}/evidence/${file.id}`, "DELETE");
+      setDetail((current) => current?.meeting.id === meetingId ? { ...current, evidence: current.evidence.filter((item) => item.id !== file.id) } : current);
+      if (result.warning) setUploadError(result.warning);
+    } catch (err) { setUploadError(err instanceof Error ? err.message : "Gagal menghapus dokumentasi."); }
+    finally { setDeletingEvidenceId(null); }
   }
 
   async function uploadVideo(file: File, meetingId: string, onProgress: (fraction: number) => void) {
@@ -412,6 +567,7 @@ export default function TutorPage() {
           </section>
         </> : activeTab === "riwayat" ? <>
           <section className="card history-card"><div className="card-heading"><div><h2>Rekap Absensi</h2><p>Lihat laporan presensi yang sudah disimpan.</p></div><button className="btn ghost small history-refresh" onClick={() => void load()} aria-label="Muat ulang data"><span aria-hidden="true">↻</span><span>Muat ulang</span></button></div>
+            <button type="button" className="btn secondary teaching-recap-open" onClick={() => setTeachingRecapOpen(true)}><NavIcon name="recap" />Coba rekap</button>
             <div className="history-filter-grid" role="group" aria-label="Filter rekap absensi">
               <div className="field"><label htmlFor="history-month">Bulan</label><select id="history-month" value={selectedMonth} onChange={(event) => { setHistoryMonth(event.target.value); setDetail(null); }}>{monthNames.map((month, index) => <option key={month} value={String(index + 1).padStart(2, "0")}>{month}</option>)}</select></div>
               <div className="field"><label htmlFor="history-year">Tahun</label><select id="history-year" value={selectedYear} onChange={(event) => { setHistoryYear(event.target.value); setDetail(null); }}>{historyYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></div>
@@ -426,14 +582,14 @@ export default function TutorPage() {
         </> : <>
           <section className="card class-picker-card"><div className="presensi-tutor-banner" aria-label={`Presensi tutor ${userName}`}><TutorAvatar name={userName} className="presensi-tutor-avatar tutor-photo" size={42} /><div><span>Tutor</span><strong>{userName}</strong></div></div>
             <div className="class-picker-caption"><span>{classDay && dateText(classDay + "T00:00:00+07:00")}</span>{classes.length > 0 && <span className="class-picker-count">{classes.length} kelas tersedia</span>}</div>
-            {classes.length ? <div className="field"><label id="class-choice-label" htmlFor="class-choice">Kelas hari ini</label><TutorClassPicker id="class-choice" labelledBy="class-choice-label" describedBy={unscheduledClasses.length ? "class-choice-note" : undefined} classes={classes} value={selectedClassId} disabled={busy || uploadBusy} onChange={(id) => void chooseClass(id)} />{unscheduledClasses.length > 0 && <span id="class-choice-note" className="field-help">Kelas tanpa jadwal tetap dapat diisi setiap hari.</span>}</div> : <div className="empty-state class-picker-empty"><div className="empty-icon"><NavIcon name="presence" /></div>Tidak ada kelas hari ini.</div>}
+            {classes.length ? <div className="field"><label id="class-choice-label" htmlFor="class-choice">Kelas hari ini</label><TutorClassPicker id="class-choice" labelledBy="class-choice-label" describedBy={unscheduledClasses.length ? "class-choice-note" : undefined} classes={classes} value={selectedClassId} disabled={busy || uploadBusy || Boolean(deletingEvidenceId)} onChange={(id) => void chooseClass(id)} />{unscheduledClasses.length > 0 && <span id="class-choice-note" className="field-help">Kelas tanpa jadwal tetap dapat diisi setiap hari.</span>}</div> : <div className="empty-state class-picker-empty"><div className="empty-icon"><NavIcon name="presence" /></div>Tidak ada kelas hari ini.</div>}
           </section>
         </>}
         {busy && !detail && <div className="message info">Membuka detail pertemuan…</div>}
-        {detail && <div className="meeting-flow" id="meeting-detail">
+        {detail && activeTab === "presensi" && <div className="meeting-flow" id="meeting-detail">
           <section className="card meeting-summary-card">
             <div className="meeting-summary-head"><div><h2>{detail.meeting.class_name}</h2><p>{dateText(detail.meeting.meeting_date)}</p></div><button className="btn ghost small" onClick={() => { setDetail(null); setSelectedClassId(""); setLocationIssue(false); setOutsideLocation(null); }} aria-label="Tutup pertemuan">×</button></div>
-            {detail.meeting.status === "completed" && <div className="message success">Presensi sudah dikirim. {submittedTime(detail.meeting.submitted_at)}.</div>}
+            {detail.meeting.status === "completed" && <><div className="message success">Presensi sudah dikirim. {submittedTime(detail.meeting.submitted_at)}. Dokumentasi di bawah ini berasal dari presensi tersebut.</div><button type="button" className="btn secondary new-meeting-button" disabled={busy || uploadBusy || Boolean(deletingEvidenceId)} onClick={() => void chooseClass(selectedClassId, true)}>Mulai absensi baru</button></>}
           </section>
           <section className="card presensi-step-card location-step">
             <div className="step-head"><div className="step-title"><h2>Pilih lokasi</h2></div></div>
@@ -448,12 +604,13 @@ export default function TutorPage() {
             <div className="step-head"><div className="step-title"><h2>Dokumentasi</h2></div><span className={`status ${detail.evidence.length ? "ok" : "wait"}`}>{detail.evidence.length} berkas</span></div>
             <p className="step-hint">{detail.checkin ? "Foto JPG/PNG/WebP maks. 3 MB · Video MP4/MOV/WebM maks. 100 MB per video." : "Check-in lokasi dulu untuk unggah."}</p>
             {detail.meeting.status !== "completed" && <div className="documentation-upload-actions">
-              <label className={`btn secondary upload-button ${uploadBusy || !detail.checkin ? "is-disabled" : ""}`}><NavIcon name="camera" /><span>Ambil foto</span><input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={uploadBusy || !detail.checkin} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /></label>
-              <label className={`btn secondary upload-button ${uploadBusy || !detail.checkin ? "is-disabled" : ""}`}><NavIcon name="video" /><span>Rekam video</span><input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.mov,.webm" capture="environment" disabled={uploadBusy || !detail.checkin} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /></label>
-              <label className={`btn secondary upload-button upload-gallery-button ${uploadBusy || !detail.checkin ? "is-disabled" : ""}`}><NavIcon name="camera" /><span>Pilih dari galeri</span><input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mp4,.mov,.webm" multiple disabled={uploadBusy || !detail.checkin} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /></label>
+              <label className={`btn secondary upload-button ${uploadBusy || deletingEvidenceId || !detail.checkin ? "is-disabled" : ""}`}><NavIcon name="camera" /><span>Ambil foto</span><input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={uploadBusy || Boolean(deletingEvidenceId) || !detail.checkin} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /></label>
+              <label className={`btn secondary upload-button ${uploadBusy || deletingEvidenceId || !detail.checkin ? "is-disabled" : ""}`}><NavIcon name="video" /><span>Rekam video</span><input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.mov,.webm" capture="environment" disabled={uploadBusy || Boolean(deletingEvidenceId) || !detail.checkin} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /></label>
+              <label className={`btn secondary upload-button upload-gallery-button ${uploadBusy || deletingEvidenceId || !detail.checkin ? "is-disabled" : ""}`}><NavIcon name="camera" /><span>Pilih dari galeri</span><input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mp4,.mov,.webm" multiple disabled={uploadBusy || Boolean(deletingEvidenceId) || !detail.checkin} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /></label>
             </div>}
+            {uploadError && <div className="message error upload-error" role="alert">{uploadError}</div>}
             {uploadBusy && <><div className="upload-progress-caption">Mengunggah dokumentasi · {uploadProgress}%</div><div className="upload-progress-track" role="progressbar" aria-label="Progres unggah dokumentasi" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress}><span style={{ width: `${uploadProgress}%` }} /></div></>}
-            {detail.evidence.length > 0 && <div className="evidence-list" style={{ marginTop: 12 }}>{detail.evidence.map((file) => <div className="evidence-item" key={file.id}><span><strong>{file.name}</strong><span className="table-muted">{formatFileSize(file.size_bytes)}</span></span>{file.web_view_link && <a className="btn ghost small" href={file.web_view_link} target="_blank" rel="noreferrer">Drive ↗</a>}</div>)}</div>}
+            {detail.evidence.length > 0 && <div className="evidence-list" style={{ marginTop: 12 }}>{detail.evidence.map((file) => <EvidenceItem key={file.id} file={file} meetingId={detail.meeting.id} onDelete={detail.meeting.status === "scheduled" ? () => void deleteEvidence(file) : undefined} deleting={deletingEvidenceId === file.id} disabled={busy || uploadBusy || Boolean(deletingEvidenceId)} />)}</div>}
           </section>
           {detail.students.length > 0 && <section className="card presensi-step-card attendance-step-card">
             <div className="step-head"><div className="step-title"><h2>Daftar hadir</h2></div><span className="student-count">{detail.students.length} siswa</span></div>
@@ -462,10 +619,13 @@ export default function TutorPage() {
               {detail.students.map((student) => <div className="attendance-row attendance-student-row" key={student.id}><span className="attendance-name">{student.name}</span><div className="attendance-options" role="group" aria-label={`Kehadiran ${student.name}`}>{attendanceOptions.map((option) => <button key={option.status} type="button" className={`attendance-option ${student.status === option.status ? "selected" : ""}`} aria-label={option.label} aria-pressed={student.status === option.status} title={option.label} disabled={detail.meeting.status === "completed"} onClick={() => updateStudent(student.id, "status", option.status)}>{option.short}</button>)}</div>{student.status !== "present" && detail.meeting.status !== "completed" && <input className="attendance-reason" aria-label={`Keterangan ${student.name}`} value={student.reason || ""} onChange={(e) => updateStudent(student.id, "reason", e.target.value)} placeholder="Keterangan (opsional)" maxLength={300} />}</div>)}
             </>
           </section>}
-          {detail.meeting.status !== "completed" && <section className="card presensi-submit-card"><button className="btn full submit-attendance-button" disabled={busy || uploadBusy || !detail.checkin || !detail.evidence.length} onClick={() => void submitAttendance()}>{busy ? "Menyimpan…" : <><NavIcon name="send" /> Simpan absensi</>}</button><span className="submit-hint">{!detail.checkin ? "Lokasi belum diambil" : !detail.evidence.length ? "Tambahkan foto atau video dokumentasi" : !detail.students.length ? "Kelas ini belum memiliki siswa. Lokasi dan dokumentasi dapat langsung disimpan." : "Periksa data, lalu simpan"}</span></section>}
+          {detail.meeting.status !== "completed" && <section className="card presensi-submit-card"><button className="btn full submit-attendance-button" disabled={busy || uploadBusy || Boolean(deletingEvidenceId) || !detail.checkin || !detail.evidence.length} onClick={() => void submitAttendance()}>{busy ? "Menyimpan…" : <><NavIcon name="send" /> Simpan absensi</>}</button><span className="submit-hint">{!detail.checkin ? "Lokasi belum diambil" : !detail.evidence.length ? "Tambahkan foto atau video dokumentasi" : !detail.students.length ? "Kelas ini belum memiliki siswa. Lokasi dan dokumentasi dapat langsung disimpan." : "Periksa data, lalu simpan"}</span></section>}
         </div>}
       </div>
     </main>
+    {teachingRecapOpen && <TeachingRecapDialog meetings={completed} userName={userName} today={currentDate} onClose={closeTeachingRecap} />}
+    {attendanceSuccess && <AttendanceSuccessDialog onClose={closeAttendanceSuccess} onHistory={() => { setAttendanceSuccess(false); setActiveTab("riwayat"); setMessage(""); }} />}
+    {detail && activeTab === "riwayat" && <HistoryDialog detail={detail} onClose={closeHistory} />}
     {passwordDialog && <PasswordChangeDialog phase={passwordDialog} busy={passwordSaving} error={passwordDialogError} onClose={closePasswordDialog} onConfirm={() => void savePassword()} />}
   </div>;
 }
