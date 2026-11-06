@@ -264,6 +264,7 @@ export default function TutorPage() {
   const [uploadBusy, setUploadBusy] = useState(false);
   const [deletingEvidenceId, setDeletingEvidenceId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState("");
+  const [retryVideo, setRetryVideo] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -337,6 +338,7 @@ export default function TutorPage() {
   async function chooseClass(classId: string, newMeeting = false) {
     setSelectedClassId(classId);
     setUploadError("");
+    setRetryVideo(null);
     setDetail(null);
     setLocationIssue(false);
     setOutsideLocation(null);
@@ -432,15 +434,17 @@ export default function TutorPage() {
     finally { setPasswordSaving(false); }
   }
 
-  async function uploadFiles(files: FileList | null) {
+  async function uploadFiles(files: FileList | File[] | null) {
     if (!detail || !files?.length) return;
-    setUploadBusy(true); setError(""); setUploadError(""); setMessage("");
+    setUploadBusy(true); setError(""); setUploadError(""); setRetryVideo(null); setMessage("");
+    let currentFile: File | null = null;
     try {
       const selectedFiles = Array.from(files);
       const totalBytes = selectedFiles.reduce((total, file) => total + file.size, 0);
       let completedBytes = 0;
       setUploadProgress(0);
       for (const original of selectedFiles) {
+        currentFile = original;
         if (original.type.startsWith("video/")) {
           if (original.size > maxVideoBytes) throw new Error(`${original.name} melebihi batas 100 MB per video.`);
           if (!["video/mp4", "video/webm", "video/quicktime"].includes(original.type)) throw new Error("Format video yang didukung: MP4, MOV, dan WebM.");
@@ -457,10 +461,14 @@ export default function TutorPage() {
         }
         completedBytes += original.size;
         setUploadProgress(Math.min(100, Math.round((completedBytes / totalBytes) * 100)));
+        currentFile = null;
       }
       const refreshed = await request(`/api/meetings/${detail.meeting.id}`);
       setDetail(refreshed); setMessage("Dokumentasi berhasil diunggah ke Google Drive."); await load();
-    } catch (err) { setUploadError(err instanceof Error ? err.message : "Gagal mengunggah dokumentasi."); }
+    } catch (err) {
+      if (!(err as { videoUploaded?: boolean })?.videoUploaded && currentFile?.type.startsWith("video/") && currentFile.size <= maxVideoBytes && ["video/mp4", "video/webm", "video/quicktime"].includes(currentFile.type)) setRetryVideo(currentFile);
+      setUploadError(err instanceof Error ? err.message : "Gagal mengunggah dokumentasi.");
+    }
     finally { setUploadBusy(false); setUploadProgress(0); }
   }
 
@@ -485,7 +493,10 @@ export default function TutorPage() {
       cache: "no-store",
     });
     const initResult = await initResponse.json().catch(() => ({}));
-    if (!initResponse.ok || !initResult.uploadToken) throw new Error(initResult.error || `Gagal menyiapkan unggahan ${file.name}.`);
+    if (!initResponse.ok) throw new Error(initResult.error || `Gagal menyiapkan unggahan ${file.name} (HTTP ${initResponse.status}). Coba lagi atau hubungi admin.`);
+    if (typeof initResult.uploadToken !== "string" || !initResult.uploadToken) {
+      throw new Error("Server belum menggunakan versi unggah video terbaru. Mulai ulang server aplikasi, muat ulang halaman, lalu coba lagi.");
+    }
 
     let start = 0;
     let driveFileId = "";
@@ -514,14 +525,20 @@ export default function TutorPage() {
     }
     if (!driveFileId) throw new Error(`Google Drive belum menyelesaikan unggahan ${file.name}.`);
 
-    const completeResponse = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "complete", fileId: driveFileId }),
-      cache: "no-store",
-    });
-    const completeResult = await completeResponse.json().catch(() => ({}));
-    if (!completeResponse.ok) throw new Error(completeResult.error || `Video ${file.name} sudah diunggah, tetapi gagal dicatat pada presensi.`);
+    try {
+      const completeResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete", fileId: driveFileId }),
+        cache: "no-store",
+      });
+      const completeResult = await completeResponse.json().catch(() => ({}));
+      if (!completeResponse.ok) throw new Error(completeResult.error || "Pencatatan video gagal.");
+    } catch {
+      const failure = new Error(`Video ${file.name} sudah diunggah, tetapi pencatatannya belum dapat dipastikan. Muat ulang pertemuan dan periksa dokumentasi atau hubungi admin.`) as Error & { videoUploaded: boolean };
+      failure.videoUploaded = true;
+      throw failure;
+    }
   }
 
   async function logout() {
@@ -609,6 +626,7 @@ export default function TutorPage() {
               <label className={`btn secondary upload-button upload-gallery-button ${uploadBusy || deletingEvidenceId || !detail.checkin ? "is-disabled" : ""}`}><NavIcon name="camera" /><span>Pilih dari galeri</span><input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mp4,.mov,.webm" multiple disabled={uploadBusy || Boolean(deletingEvidenceId) || !detail.checkin} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /></label>
             </div>}
             {uploadError && <div className="message error upload-error" role="alert">{uploadError}</div>}
+            {retryVideo && <div className="upload-retry"><span>Video {retryVideo.name} masih tersedia selama halaman ini terbuka.</span><button type="button" className="btn secondary small" disabled={uploadBusy || Boolean(deletingEvidenceId)} onClick={() => void uploadFiles([retryVideo])}>Coba unggah lagi</button></div>}
             {uploadBusy && <><div className="upload-progress-caption">Mengunggah dokumentasi · {uploadProgress}%</div><div className="upload-progress-track" role="progressbar" aria-label="Progres unggah dokumentasi" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress}><span style={{ width: `${uploadProgress}%` }} /></div></>}
             {detail.evidence.length > 0 && <div className="evidence-list" style={{ marginTop: 12 }}>{detail.evidence.map((file) => <EvidenceItem key={file.id} file={file} meetingId={detail.meeting.id} onDelete={detail.meeting.status === "scheduled" ? () => void deleteEvidence(file) : undefined} deleting={deletingEvidenceId === file.id} disabled={busy || uploadBusy || Boolean(deletingEvidenceId)} />)}</div>}
           </section>

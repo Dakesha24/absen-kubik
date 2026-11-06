@@ -351,6 +351,7 @@ h1,h2,h3,.brand-title{font-family:"Trebuchet MS","Arial Rounded MT Bold","Segoe 
 .tutor-shell .btn.secondary.upload-button:active:not(.is-disabled){background:#eef3ff;color:#1d43aa;box-shadow:none;transform:scale(.99)}
 .tutor-shell .btn.secondary.upload-button.is-disabled{background:#fff;color:#75839a;border-color:#d8e1ef;box-shadow:none;opacity:.65}
 .tutor-shell .upload-error{margin-top:12px;overflow-wrap:anywhere}
+.tutor-shell .upload-retry{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;color:var(--muted);font-size:14px;overflow-wrap:anywhere}
 .tutor-shell .new-meeting-button{width:100%;justify-content:center;margin-top:12px}
 @media(max-width:760px){.tutor-shell .btn.secondary.upload-button{min-height:46px}}
 .tutor-hero-card{box-sizing:border-box;width:min(100%,1120px);aspect-ratio:1765/528;margin:0 auto 24px;overflow:hidden;border:1px solid var(--line);border-radius:0;background:#fff;box-shadow:0 5px 18px rgba(39,63,112,.08)}
