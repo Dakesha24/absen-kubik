@@ -357,8 +357,10 @@ function MeetingTable({ meetings, onOpen }: { meetings: Meeting[]; onOpen: (id: 
 function AdminEvidenceItem({ file, meetingId }: { file: Detail["evidence"][number]; meetingId: string }) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const isImage = ["image/jpeg", "image/png", "image/webp"].includes(file.mime_type);
+  const isVideo = ["video/mp4", "video/webm", "video/quicktime"].includes(file.mime_type);
   return <div className="evidence-item evidence-preview-item">
     {isImage && (previewFailed ? <div className="evidence-preview-unavailable">Pratinjau foto tidak tersedia</div> : <img className="evidence-preview-image" src={`/api/meetings/${encodeURIComponent(meetingId)}/evidence/${encodeURIComponent(file.id)}/preview`} alt={`Pratinjau ${file.name}`} loading="lazy" onError={() => setPreviewFailed(true)} />)}
+    {isVideo && (previewFailed ? <div className="evidence-preview-unavailable">Video tidak dapat diputar di browser ini. Coba buka melalui Drive.</div> : <video className="evidence-preview-video" controls preload="none" playsInline aria-label={`Video ${file.name}`} src={`/api/meetings/${encodeURIComponent(meetingId)}/evidence/${encodeURIComponent(file.id)}/preview`} onError={() => setPreviewFailed(true)} />)}
     <div className="evidence-preview-info"><span><strong>{file.name}</strong><span className="table-muted">{new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(file.size_bytes / 1024)} KB · {new Date(file.created_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</span></span>{file.web_view_link ? <a className="btn secondary small" href={file.web_view_link} target="_blank" rel="noreferrer">Buka Drive ↗</a> : <span className="muted">Tersimpan</span>}</div>
   </div>;
 }

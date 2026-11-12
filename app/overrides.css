@@ -451,6 +451,7 @@ h1,h2,h3,.brand-title{font-family:"Trebuchet MS","Arial Rounded MT Bold","Segoe 
 .tutor-shell .history-dialog .location-map-frame{box-sizing:border-box;max-width:100%}
 .tutor-shell .evidence-preview-item{display:block;min-width:0;overflow:hidden;padding:10px;border:1px solid #e2e9f5;background:#fbfcff}
 .tutor-shell .evidence-preview-image,.tutor-shell .evidence-preview-unavailable{box-sizing:border-box;display:block;width:100%;height:200px;max-width:100%;background:#eef3fa;object-fit:contain}
+.tutor-shell .evidence-preview-video{display:block;width:100%;max-width:100%;height:200px;background:#17243a;object-fit:contain}
 .tutor-shell .evidence-preview-unavailable{display:grid;place-items:center;padding:12px;color:var(--muted);text-align:center;font-size:var(--tutor-sm)}
 .tutor-shell .evidence-preview-info{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;margin-top:8px}
 .tutor-shell .evidence-preview-info:first-child{margin-top:0}

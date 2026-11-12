@@ -146,8 +146,10 @@ function LocationMap({ latitude, longitude, title, precision = 3 }: { latitude: 
 function EvidenceItem({ file, meetingId, onDelete, deleting, disabled }: { file: Evidence; meetingId: string; onDelete?: () => void; deleting?: boolean; disabled?: boolean }) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const isImage = ["image/jpeg", "image/png", "image/webp"].includes(file.mime_type);
+  const isVideo = ["video/mp4", "video/webm", "video/quicktime"].includes(file.mime_type);
   return <div className="evidence-item evidence-preview-item">
     {isImage && (previewFailed ? <div className="evidence-preview-unavailable">Pratinjau foto tidak tersedia</div> : <img className="evidence-preview-image" src={`/api/meetings/${encodeURIComponent(meetingId)}/evidence/${encodeURIComponent(file.id)}/preview`} alt={`Pratinjau ${file.name}`} loading="lazy" onError={() => setPreviewFailed(true)} />)}
+    {isVideo && (previewFailed ? <div className="evidence-preview-unavailable">Video tidak dapat diputar di browser ini. Coba buka melalui Drive.</div> : <video className="evidence-preview-video" controls preload="none" playsInline aria-label={`Video ${file.name}`} src={`/api/meetings/${encodeURIComponent(meetingId)}/evidence/${encodeURIComponent(file.id)}/preview`} onError={() => setPreviewFailed(true)} />)}
     <div className="evidence-preview-info"><span><strong>{file.name}</strong><span className="table-muted">{formatFileSize(file.size_bytes)}</span></span><div className="evidence-preview-actions">{file.web_view_link && <a className="btn ghost small" href={file.web_view_link} target="_blank" rel="noreferrer">Drive ↗</a>}{onDelete && <button type="button" className="btn ghost small evidence-delete" onClick={onDelete} disabled={disabled} aria-label={`Hapus ${file.name}`}><NavIcon name="trash" />{deleting ? "Menghapus…" : "Hapus"}</button>}</div></div>
   </div>;
 }

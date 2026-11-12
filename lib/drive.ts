@@ -1,5 +1,5 @@
 import "server-only";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { effectiveDriveSettings } from "@/lib/drive-settings";
 import { db } from "@/lib/db";
 
@@ -71,6 +71,37 @@ function escapeDriveQuery(value: string) {
 }
 
 async function findOrCreateFolder(token: string, name: string, parentId?: string): Promise<string> {
+  // Serialize folder creation across serverless instances, including different meetings.
+  const lockKey = "drive-folder-lock:" + createHash("sha256").update(JSON.stringify([parentId || "root", name])).digest("hex");
+  const lockOwner = randomUUID();
+  let acquired = false;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const rows = await db()`
+      INSERT INTO app_settings (key, encrypted_value, updated_at) VALUES (${lockKey}, ${lockOwner}, NOW())
+      ON CONFLICT (key) DO UPDATE SET encrypted_value = EXCLUDED.encrypted_value, updated_at = NOW()
+      WHERE app_settings.updated_at < NOW() - INTERVAL '60 seconds'
+      RETURNING key
+    `;
+    if (rows.length) { acquired = true; break; }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  if (!acquired) throw new Error("Folder dokumentasi sedang disiapkan. Coba unggah lagi sebentar lagi.");
+  try {
+  const folderKey = lockKey.replace("drive-folder-lock:", "drive-folder-id:");
+  const saved = await db()`SELECT encrypted_value FROM app_settings WHERE key = ${folderKey} LIMIT 1`;
+  if (saved.length) {
+    const savedId = String(saved[0].encrypted_value);
+    const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(savedId)}?supportsAllDrives=true&fields=id,name,mimeType,trashed,parents`, {
+      headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(15000),
+    });
+    if (metadataResponse.ok) {
+      const folder = await metadataResponse.json() as { id?: string; name?: string; mimeType?: string; trashed?: boolean; parents?: string[] };
+      if (folder.id && folder.name === name && folder.mimeType === "application/vnd.google-apps.folder" && !folder.trashed && (parentId ? folder.parents?.includes(parentId) : true)) return folder.id;
+    } else if (metadataResponse.status !== 404) {
+      throw new Error("Gagal memeriksa folder dokumentasi di Google Drive.");
+    }
+    await db()`DELETE FROM app_settings WHERE key = ${folderKey}`;
+  }
   const clauses = [
     `name = '${escapeDriveQuery(name)}'`,
     "mimeType = 'application/vnd.google-apps.folder'",
@@ -78,26 +109,34 @@ async function findOrCreateFolder(token: string, name: string, parentId?: string
   ];
   if (parentId) clauses.push(`'${escapeDriveQuery(parentId)}' in parents`);
   else clauses.push("'root' in parents");
-  const query = new URLSearchParams({ q: clauses.join(" and "), pageSize: "10", fields: "files(id,name)", supportsAllDrives: "true", includeItemsFromAllDrives: "true", corpora: "allDrives" });
+  const query = new URLSearchParams({ q: clauses.join(" and "), pageSize: "10", orderBy: "createdTime", fields: "files(id,name)", supportsAllDrives: "true", includeItemsFromAllDrives: "true", corpora: "allDrives" });
   const searchResponse = await fetch(`https://www.googleapis.com/drive/v3/files?${query}`, {
-    headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+    headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(15000),
   });
   const found = await searchResponse.json() as { files?: Array<{ id: string }> };
   if (!searchResponse.ok) throw new Error("Gagal mencari folder di Google Drive.");
-  if (found.files?.[0]?.id) return found.files[0].id;
+  if (found.files?.[0]?.id) {
+    const id = found.files[0].id;
+    await db()`INSERT INTO app_settings (key, encrypted_value, updated_at) VALUES (${folderKey}, ${id}, NOW()) ON CONFLICT (key) DO UPDATE SET encrypted_value = EXCLUDED.encrypted_value, updated_at = NOW()`;
+    return id;
+  }
 
   const createResponse = await fetch("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name, mimeType: "application/vnd.google-apps.folder", ...(parentId ? { parents: [parentId] } : {}) }),
-    cache: "no-store",
+    cache: "no-store", signal: AbortSignal.timeout(15000),
   });
   const created = await createResponse.json() as { id?: string };
   if (!createResponse.ok || !created.id) throw new Error("Gagal membuat folder Google Drive.");
+  await db()`INSERT INTO app_settings (key, encrypted_value, updated_at) VALUES (${folderKey}, ${created.id}, NOW()) ON CONFLICT (key) DO UPDATE SET encrypted_value = EXCLUDED.encrypted_value, updated_at = NOW()`;
   return created.id;
+  } finally {
+    await db()`DELETE FROM app_settings WHERE key = ${lockKey} AND encrypted_value = ${lockOwner}`;
+  }
 }
 
-export async function ensureEvidenceFolder(className: string, meetingDate: string, startsAt: string | null, existingFolderId: string | null, meetingId: string, classId: string, meetingNumber: number) {
+export async function ensureEvidenceFolder(className: string, meetingDate: string, startsAt: string | null, existingFolderId: string | null) {
   if (typeof meetingDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(meetingDate)) {
     throw new Error("Tanggal pertemuan tidak valid. Muat ulang aplikasi atau mulai ulang server, lalu coba lagi.");
   }
@@ -114,8 +153,7 @@ export async function ensureEvidenceFolder(className: string, meetingDate: strin
   const schoolFolder = await findOrCreateFolder(token, school, root);
   const classFolder = await findOrCreateFolder(token, `${name} - ${time}`, schoolFolder);
   const dateName = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(dateValue);
-  const earlier = await db()`SELECT id FROM meetings WHERE class_id = ${classId} AND meeting_date = ${meetingDate}::date AND id <> ${meetingId} AND drive_folder_id IS NOT NULL LIMIT 1`;
-  const meetingFolder = await findOrCreateFolder(token, earlier.length ? `${dateName} - Pertemuan ${meetingNumber}` : dateName, classFolder);
+  const meetingFolder = await findOrCreateFolder(token, dateName, classFolder);
   return { id: meetingFolder, token };
 }
 
